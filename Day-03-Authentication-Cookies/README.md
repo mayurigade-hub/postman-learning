@@ -67,27 +67,40 @@ A typical authentication process works as follows:
 
 ### Authentication Flow Diagram
 
+
+### 3. Complete Session-Based Authentication Process
+
+Let's trace the complete journey of session-based authentication in Wanderlust.
+
 ```mermaid
-sequenceDiagram
-    participant C as Client / Postman
-    participant S as Express Server
-    participant DB as MongoDB
+flowchart TD
+    A["<b>Step 1 — User logs in</b><br/><br/>Postman / Browser<br/>POST /login<br/>Username + Password"]
 
-    C->>S: POST /login (credentials)
-    S->>DB: Verify user credentials
-    DB-->>S: User details
-    S->>S: Create session
-    S-->>C: Set-Cookie: connect.sid
-    Note over C: Store session cookie
+    B["<b>Step 2 — Server verifies credentials</b><br/><br/>Passport Local Strategy checks the submitted credentials against the user stored in MongoDB.<br/><br/><b>MongoDB</b><br/>Finds and verifies user"]
 
-    C->>S: GET /protected-route + Cookie
-    S->>S: Verify session
-    S-->>C: Protected resource
+    C["<b>Step 3 — Express creates a session</b><br/><br/>express-session creates a session and stores it in MemoryStore.<br/><br/>Passport serializes the user's ID into the session.<br/><br/><b>Express MemoryStore</b><br/>Session ID → Session Data → User ID"]
 
-    C->>S: GET /protected-route without Cookie
-    S->>S: Authentication check fails
-    S-->>C: 302 Redirect to /login
+    D["<b>Step 4 — Server sends a cookie</b><br/><br/>Set-Cookie: connect.sid=...<br/><br/>Postman receives and stores this cookie."]
+
+    E["<b>Step 5 — User makes another request</b><br/><br/>GET /listings/new<br/>Cookie: connect.sid=..."]
+
+    F["<b>Step 6 — Express retrieves the session</b><br/><br/>express-session reads the cookie, identifies the session and retrieves the corresponding session data from MemoryStore."]
+
+    G["<b>Step 7 — Passport restores the user</b><br/><br/>Passport uses the serialized user ID and calls deserializeUser() to restore the user from MongoDB.<br/><br/>The user becomes available through req.user."]
+
+    H["<b>✓ User authenticated!</b>"]
+
+    A --> B --> C --> D --> E --> F --> G --> H
+
+    classDef normal fill:#081321,stroke:#263445,color:#ffffff,stroke-width:1px
+    classDef success fill:#002b16,stroke:#087b3b,color:#ffffff,stroke-width:1px
+
+    class A,B,C,D,E,F,G normal
+    class H success
+
+    linkStyle default stroke:#9ca3af,stroke-width:1.5px
 ```
+
 
 *Note: The diagram illustrates session-based authentication. Token-based authentication follows a different credential-handling mechanism.*
 
