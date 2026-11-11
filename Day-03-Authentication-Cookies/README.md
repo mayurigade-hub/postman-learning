@@ -106,6 +106,131 @@ flowchart TD
 
 ---
 
+## Why Do We Need Serialization and Deserialization?
+
+In Passport.js, serialization and deserialization help maintain a user's authenticated state across multiple HTTP requests.
+
+Let's understand why both are required.
+
+### 1. Serialization – Storing the User ID
+
+When a user logs in successfully, Passport receives the complete user object from the Local Strategy.
+
+For example:
+
+```javascript
+{
+    _id: "12345",
+    username: "Mayuri",
+    email: "mayuri@example.com"
+}
+```
+
+Instead of storing the entire user object in the session, Passport stores only the user's unique ID.
+
+This process is called **Serialization**.
+
+```javascript
+passport.serializeUser((user, done) => {
+    done(null, user._id);
+});
+```
+
+**In simple words:** Serialization decides what user information should be stored in the session. In our case, it stores only the user ID.
+
+### 2. Deserialization – Retrieving the User
+
+When the same user makes another request, Passport gets the stored user ID from the session.
+
+However, our application often needs the complete user object to perform operations.
+
+Therefore, Passport uses the stored ID to retrieve the user from MongoDB.
+
+This process is called **Deserialization**.
+
+```javascript
+passport.deserializeUser(async (id, done) => {
+    try {
+        const user = await User.findById(id);
+        done(null, user);
+    } catch (err) {
+        done(err);
+    }
+});
+```
+
+After successful deserialization, Passport makes the user available through:
+
+```javascript
+req.user
+```
+
+**In simple words:** Deserialization uses the stored user ID to retrieve the complete user information from MongoDB.
+
+### 3. Why Do We Need Both?
+
+Consider our Wanderlust application.
+
+After login, the session contains the user's ID, not the complete user document.
+
+But our application needs the actual user information for operations such as:
+
+- Identifying the logged-in user.
+- Associating a newly created listing with its owner.
+- Checking whether a user owns a particular listing.
+- Checking whether a user is the author of a review.
+
+For example:
+
+```javascript
+newListing.owner = req.user._id;
+```
+
+Here, `req.user` contains the restored user object.
+
+Therefore:
+
+- **Serialization:** Stores the user's ID in the session.
+- **Deserialization:** Retrieves the complete user object using that ID.
+
+### 4. Serialization and Deserialization Flow
+
+```mermaid
+flowchart TD
+    A["User successfully logs in"]
+    B["Passport receives complete user object"]
+    C["Serialization<br/>serializeUser()"]
+    D["Extract and store User ID in session"]
+    E["User makes another request"]
+    F["Retrieve User ID from session"]
+    G["Deserialization<br/>deserializeUser()"]
+    H["Find complete user in MongoDB"]
+    I["User available through req.user"]
+
+    A --> B --> C --> D --> E --> F --> G --> H --> I
+
+    classDef normal fill:#081321,stroke:#263445,color:#ffffff
+    classDef success fill:#002b16,stroke:#087b3b,color:#ffffff
+
+    class A,B,C,D,E,F,G,H normal
+    class I success
+```
+
+### 5. Quick Comparison
+
+| Serialization | Deserialization |
+|---|---|
+| Happens during login | Happens during subsequent authenticated requests |
+| Receives the user object | Receives the stored user ID |
+| Stores the user ID in the session | Retrieves the complete user from MongoDB |
+| Uses `serializeUser()` | Uses `deserializeUser()` |
+
+### Key Takeaway
+
+Serialization stores the user's ID in the session, while deserialization retrieves the complete user object using that ID.
+
+Together, they allow Passport.js to maintain the user's authenticated state across multiple HTTP requests without storing the entire user object in the session.
+
 ## 3. Authentication Types in Postman
 
 Postman provides different authentication configurations through the Authorization tab.
